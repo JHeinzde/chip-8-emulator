@@ -9,8 +9,6 @@ int main() {
    struct chip8* chip = init_chip8();
     initialize(chip);
     load_program("C:\\Users\\Jonathan\\CLionProjects\\untitled\\test_opcode.ch8", chip);
-
-    //print_debug(chip);
     execute_program(chip);
 
     return 0;

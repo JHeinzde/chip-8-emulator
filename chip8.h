@@ -23,8 +23,6 @@
 
 #define FETCH_OPCODE(pc, mem) ((mem)[(pc)] << 8 | (mem)[(pc) + 1])
 
-//#define VF 0xe
-
 typedef enum {
     V0 = 0,
     V1 = 1,
@@ -43,34 +41,6 @@ typedef enum {
     VE = 14,
     VF = 15,
 } register_refs;
-
-//#define CLEAR_EXIT 0x0000
-//#define JMP 0x1000
-//#define CALL 0x2000
-//#define SE 0x3000
-//#define SNE 0x4000
-//#define SE_R 0x5000
-//#define ASSIGN_R 0x6000
-//#define ADD_R 0x7000
-//#define OPS_R 0x8000
-//#define SNE_R 0x9000
-//#define LDI 0xa000
-//#define JMP_R 0xb000
-//#define RAND 0xc000
-//#define DRW 0xd000
-//#define OPS_K 0xe000
-//#define OPS_M 0xf000
-
-// Register operations
-//#define ASSIGN 0x0
-//#define OR 0x1
-//#define AND 0x2
-//#define XOR 0x3
-//#define ADD 0x4
-//#define SUB 0x5
-//#define SHR 0x6
-//#define SUBN 0x7
-//#define SHL 0xE
 
 typedef enum {
     CLEAR_EXIT = 0x0000,
@@ -145,16 +115,6 @@ typedef enum {
     KEY_V_P = 15,
 } keys;
 
-//#define LD_X_DT 0x07
-//#define LD_K_W 0x0a
-//#define LD_DT_X 0x15
-//#define LD_ST_X 0x18
-//#define ADD_I_X 0x1e
-//#define SET_I_SP 0x29
-//#define BCD 0x33
-//#define SAVE 0x55
-//#define LOAD 0x65
-
 
 #define LAST_12_BITS 0x0fff
 #define LAST_8_BITS 0x00ff
@@ -176,39 +136,18 @@ typedef enum {
 #define NN(opcode) (opcode & LAST_8_BITS)
 #define N(opcode) (opcode & LAST_4_BITS)
 
-
-
-
-//#define KEY_1_P 0
-//#define KEY_2_P 1
-//#define KEY_3_P 2
-//#define KEY_4_P 3
-//#define KEY_Q_P 4
-//#define KEY_W_P 5
-//#define KEY_E_P 6
-//#define KEY_R_P 7
-//#define KEY_A_P 8
-//#define KEY_S_P 9
-//#define KEY_D_P 10
-//#define KEY_F_P 11
-//#define KEY_Z_P 12
-//#define KEY_X_P 13
-//#define KEY_C_P 14
-//#define KEY_V_P 15
-
-
 #define INVALID_KEY 255
 
 
 struct chip8 {
     uint8_t memory[MEM_SIZE];
     uint8_t V[REG_SIZE];
-    uint8_t gfx[GFX_SIZE]; // The chip 8 screen has 2048 pixels
+    uint8_t gfx[GFX_SIZE];
 
     uint16_t stack[STACK_SIZE];
     uint16_t sp;
 
-    uint8_t key[KEY_SIZE]; // Key states
+    uint8_t key[KEY_SIZE];
 
     uint16_t pc;
     uint16_t opcode;
