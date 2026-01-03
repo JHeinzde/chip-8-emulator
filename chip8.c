@@ -153,14 +153,16 @@ void emulate_cycle(struct chip8 *chip) {
                     chip->V[reg_x] -= chip->V[reg_y];
                     break;
                 case SHR:
+                    // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y >> 1
                     chip->V[VF] = 0;
                     chip->V[VF] = chip->V[reg_x] & 0b1;
-                    chip->V[reg_x] >>= chip->V[reg_y];
+                    chip->V[reg_x] >>= 1;
                     break;
                 case SHL:
+                    // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y << 1
                     chip->V[VF] = 0;
                     chip->V[VF] = chip->V[reg_y] & 0b10000000;
-                    chip->V[reg_x] <<= chip->V[reg_y];
+                    chip->V[reg_x] <<= 1;
                     break;
                 case SUBN:
                     chip->V[VF] = 0;
