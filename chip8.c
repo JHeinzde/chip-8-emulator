@@ -66,7 +66,8 @@ void load_program(char *filename, struct chip8 *chip) {
 void emulate_cycle(struct chip8 *chip) {
 
     chip->opcode = FETCH_OPCODE(chip->pc, chip->memory);
-    printf("Executing opcode 0x%04x\n", chip->opcode);
+    chip->pc += 2;
+    printf("Executing opcode 0x%04x with pc %x\n", chip->opcode, chip->pc);
 
     int reg_x = GET_X(chip->opcode);
     int reg_y = GET_Y(chip->opcode);
@@ -81,12 +82,10 @@ void emulate_cycle(struct chip8 *chip) {
                     for (int i = 0; i < GFX_SIZE; i++) {
                         chip->gfx[i] = 0x0;
                     }
-                    chip->pc += 2;
                     break;
                 case EXIT:
-                    chip->pc = chip->stack[chip->sp - 1];
+                    chip->pc = chip->stack[chip->sp];
                     chip->sp -= 1;
-                    chip->pc += 2;
                     break;
                 default:
                     printf("DEFAULT CASE opcode: %d, pc: %x\n", chip->opcode, chip->pc);
@@ -97,58 +96,48 @@ void emulate_cycle(struct chip8 *chip) {
         case LDI:
             printf("Assign Index register with value %x\n", nnn);
             chip->index_reg = nnn;
-            chip->pc += 2;
             break;
         case JMP:
             chip->pc = nnn;
             break;
         case CALL:
+            printf("called %x with pc %x", nnn, chip->pc);
+            chip->sp += 1;
             chip->stack[chip->sp] = chip->pc;
             chip->pc = nnn;
-            chip->sp += 1;
             break;
         case SE:
-            if (chip->V[reg_x] == nn) chip->pc += 4;
-            else chip->pc += 2;
+            if (chip->V[reg_x] == nn) chip->pc += 2;
 
             break;
         case SNE:
-            if (chip->V[reg_x] != nn) chip->pc += 4;
-            else chip->pc += 2;
+            if (chip->V[reg_x] != nn) chip->pc += 2;
 
             break;
         case SE_R:
             if (chip->V[reg_x] == chip->V[reg_y])
-                chip->pc += 4;
-            else
                 chip->pc += 2;
             break;
         case ASSIGN_R:
             printf("Assigning register %x with value %d\n", reg_x, nn);
             chip->V[reg_x] = nn;
-            chip->pc += 2;
             break;
         case ADD_R:
             chip->V[reg_x] += nn;
-            chip->pc += 2;
             break;
         case OPS_R:
             switch (chip->opcode & LAST_4_BITS) {
                 case ASSIGN:
                     chip->V[reg_x] = chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case OR:
                     chip->V[reg_x] |= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case AND:
                     chip->V[reg_x] &= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case XOR:
                     chip->V[reg_x] ^= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case ADD:
                     chip->V[VF] = 0;
@@ -157,31 +146,26 @@ void emulate_cycle(struct chip8 *chip) {
 
                     if (((int) (chip->V[VF] + chip->V[reg_y])) > UINT8_MAX) //Set carry if overflow
                         chip->V[VF] = 1;
-                    chip->pc += 2;
                     break;
                 case SUB:
                     chip->V[VF] = 0;
                     chip->V[VF] = (chip->V[reg_x] > chip->V[reg_y]);
                     chip->V[reg_x] -= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case SHR:
                     chip->V[VF] = 0;
                     chip->V[VF] = chip->V[reg_x] & 0b1;
                     chip->V[reg_x] >>= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case SHL:
                     chip->V[VF] = 0;
                     chip->V[VF] = chip->V[reg_y] & 0b10000000;
                     chip->V[reg_x] <<= chip->V[reg_y];
-                    chip->pc += 2;
                     break;
                 case SUBN:
                     chip->V[VF] = 0;
                     chip->V[VF] = chip->V[reg_y] > chip->V[reg_x];
                     chip->V[reg_x] = chip->V[reg_y] - chip->V[reg_x];
-                    chip->pc += 2;
                     break;
                 default:
                     printf("UNIMPLEMENTED REGISTER OPCODE %d\n", chip->opcode & LAST_4_BITS);
@@ -189,8 +173,6 @@ void emulate_cycle(struct chip8 *chip) {
             break;
         case SNE_R:
             if (chip->V[reg_x] != chip->V[reg_y])
-                chip->pc += 4;
-            else
                 chip->pc += 2;
             break;
         case JMP_R:
@@ -198,7 +180,6 @@ void emulate_cycle(struct chip8 *chip) {
             break;
         case RAND:
             chip->V[reg_x] = (rand() % UCHAR_MAX) ^ nn;
-            chip->pc += 2;
             break;
         case DRW: {
             uint8_t x_coord = chip->V[reg_x];
@@ -227,19 +208,14 @@ void emulate_cycle(struct chip8 *chip) {
             }
 
             chip->draw_flag = 1;
-            chip->pc += 2;
         }
             break;
         case OPS_K:
             if ((chip->opcode & LAST_8_BITS) == KEY_NOT_PRESSED)
                 if (chip->key[chip->V[reg_x]])
-                    chip->pc += 4;
-                else
                     chip->pc += 2;
             if ((chip->opcode & LAST_8_BITS) != KEY_PRESSED)
                 if (!chip->key[chip->V[reg_x]])
-                    chip->pc += 4;
-                else
                     chip->pc += 2;
             break;
 
@@ -247,7 +223,6 @@ void emulate_cycle(struct chip8 *chip) {
             switch (nn) {
                 case LD_X_DT:
                     chip->V[reg_x] = chip->delay_timer;
-                    chip->pc += 2;
                     break;
                 case LD_K_W: {
                     int key = GetKeyPressed();
@@ -257,7 +232,6 @@ void emulate_cycle(struct chip8 *chip) {
                     } else {
                         if (key_code_to_key_pad(key) != INVALID_KEY) {
                             chip->V[reg_x] = key_code_to_key_pad(key);
-                            chip->pc += 2;
                         } else {
                             chip->pc -= 2; //Invalid key was pressed, so we still loop
                         }
@@ -266,25 +240,20 @@ void emulate_cycle(struct chip8 *chip) {
                     break;
                 case LD_DT_X:
                     chip->delay_timer = chip->V[reg_x];
-                    chip->pc += 2;
                     break;
                 case LD_ST_X:
                     chip->sound_timer = chip->V[reg_x];
-                    chip->pc += 2;
                     break;
                 case ADD_I_X:
                     chip->index_reg += chip->V[reg_x];
-                    chip->pc += 2;
                     break;
                 case SET_I_SP:
                     chip->index_reg = reg_x * 5;  // Sprites are loaded at 0x000 and are 5 bytes in size each
-                    chip->pc += 2;
                     break;
                 case BCD:
                     chip->memory[chip->index_reg] = chip->V[reg_x] / 100;
                     chip->memory[chip->index_reg + 1] = (chip->V[reg_x] / 10) % 10;
                     chip->memory[chip->index_reg + 2] = (chip->V[reg_x] % 10);
-                    chip->pc += 2;
                     break;
                 case SAVE:
                     for (int i = 0; i < chip->V[reg_x]; i++) {
@@ -343,7 +312,7 @@ void print_debug(struct chip8 *chip) {
     printf("\n");
 
     printf("GFX BUFFER CONTENT: \n");
-    
+
     for (int i = 0; i < GFX_SIZE; i++) {
         if (i % 8 == 0 && i != 0)
             printf("\n");
