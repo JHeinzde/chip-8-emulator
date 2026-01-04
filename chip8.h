@@ -79,8 +79,8 @@ typedef enum {
 } register_opcodes;
 
 typedef enum {
-    KEY_NOT_PRESSED = 0x9e,
-    KEY_PRESSED = 0xa1,
+    KEY_NOT_PRESSED = 0xa1,
+    KEY_PRESSED = 0x9e,
 } key_ops;
 
 typedef enum {
@@ -96,22 +96,22 @@ typedef enum {
 } misc_operations;
 
 typedef enum {
-    KEY_1_P = 0,
-    KEY_2_P = 1,
-    KEY_3_P = 2,
-    KEY_4_P = 3,
+    KEY_1_P = 1,
+    KEY_2_P = 2,
+    KEY_3_P = 3,
+    KEY_4_P = 0xc,
     KEY_Q_P = 4,
     KEY_W_P = 5,
     KEY_E_P = 6,
-    KEY_R_P = 7,
-    KEY_A_P = 8,
-    KEY_S_P = 9,
-    KEY_D_P = 10,
-    KEY_F_P = 11,
-    KEY_Z_P = 12,
-    KEY_X_P = 13,
-    KEY_C_P = 14,
-    KEY_V_P = 15,
+    KEY_R_P = 0xd,
+    KEY_A_P = 7,
+    KEY_S_P = 8,
+    KEY_D_P = 9,
+    KEY_F_P = 0xe,
+    KEY_Z_P = 0xa,
+    KEY_X_P = 0,
+    KEY_C_P = 0xb,
+    KEY_V_P = 0xf,
 } keys;
 
 

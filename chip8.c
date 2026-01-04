@@ -68,6 +68,8 @@ void emulate_cycle(struct chip8 *chip) {
     chip->opcode = FETCH_OPCODE(chip->pc, chip->memory);
     chip->pc += 2;
 
+    //printf("Executing opcode 0x%04x at pc 0x%03x\n", chip->opcode, chip->pc-2);
+
     int reg_x = GET_X(chip->opcode);
     int reg_y = GET_Y(chip->opcode);
     int nnn = NNN(chip->opcode);
@@ -211,12 +213,16 @@ void emulate_cycle(struct chip8 *chip) {
         }
             break;
         case OPS_K:
-            if ((chip->opcode & LAST_8_BITS) == KEY_NOT_PRESSED)
-                if (chip->key[chip->V[reg_x]])
-                    chip->pc += 2;
-            if ((chip->opcode & LAST_8_BITS) != KEY_PRESSED)
-                if (!chip->key[chip->V[reg_x]])
-                    chip->pc += 2;
+            switch (nn) {
+                case KEY_PRESSED:
+                    if (chip->key[chip->V[reg_x]])
+                        chip->pc += 2;
+                    break;
+                case KEY_NOT_PRESSED:
+                    if (!chip->key[chip->V[reg_x]])
+                        chip->pc += 2;
+                    break;
+            }
             break;
 
         case OPS_M:
@@ -374,13 +380,13 @@ int key_pad_to_key_code(unsigned char key_pad) {
     switch (key_pad) {
         // Row 1
         case KEY_1_P:
-            return KEY_KP_1;
+            return KEY_ONE;
         case KEY_2_P:
-            return KEY_KP_2;
+            return KEY_TWO;
         case KEY_3_P:
-            return KEY_KP_3;
+            return KEY_THREE;
         case KEY_4_P:
-            return KEY_KP_4;
+            return KEY_FOUR;
 
         // Row 2
         case KEY_Q_P:
