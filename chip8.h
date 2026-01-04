@@ -4,7 +4,6 @@
 
 #pragma once
 
-//#define UCHAR_MAX 255
 #include "raylib.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -12,6 +11,7 @@
 #define WIDTH 64
 #define HEIGHT 32
 #define SCALE 10
+#define FPS 60
 
 #define GFX_SIZE 2048
 #define MEM_SIZE 4096
@@ -42,22 +42,22 @@ typedef enum {
 } register_refs;
 
 typedef enum {
-    CLEAR_EXIT = 0x0000,
-    JMP = 0x1000,
-    CALL = 0x2000,
-    SE = 0x3000,
-    SNE = 0x4000,
-    SE_R = 0x5000,
-    ASSIGN_R = 0x6000,
-    ADD_R = 0x7000,
-    OPS_R = 0x8000,
-    SNE_R = 0x9000,
-    LDI = 0xa000,
-    JMP_R = 0xb000,
-    RAND = 0xc000,
-    DRW = 0xd000,
-    OPS_K = 0xe000,
-    OPS_M = 0xf000,
+    CLEAR_EXIT = 0x0,
+    JMP = 0x1,
+    CALL = 0x2,
+    SE = 0x3,
+    SNE = 0x4,
+    SE_R = 0x5,
+    ASSIGN_R = 0x6,
+    ADD_R = 0x7,
+    OPS_R = 0x8,
+    SNE_R = 0x9,
+    LDI = 0xa,
+    JMP_R = 0xb,
+    RAND = 0xc,
+    DRW = 0xd,
+    OPS_K = 0xe,
+    OPS_M = 0xf,
 } chip8_opcodes;
 
 typedef enum {
@@ -114,6 +114,11 @@ typedef enum {
     KEY_V_P = 0xf,
 } keys;
 
+typedef struct {
+    bool shift_quirk;
+    bool load_store_quirk;
+    bool jump_quirk;
+} chip8_quirks;
 
 #define LAST_12_BITS 0x0fff
 #define LAST_8_BITS 0x00ff
@@ -134,6 +139,7 @@ typedef enum {
 #define NNN(opcode) ((opcode) & LAST_12_BITS)
 #define NN(opcode) ((opcode) & LAST_8_BITS)
 #define N(opcode) ((opcode) & LAST_4_BITS)
+#define NXXX(opcode) (((opcode) & BIT_16) >> BIT_16_SHIFT)
 
 #define INVALID_KEY 255
 
@@ -157,6 +163,8 @@ struct chip8 {
     uint8_t sound_timer;
 
     bool draw_flag;
+
+    chip8_quirks quirks;
 };
 
 
@@ -179,3 +187,56 @@ void print_debug(struct chip8 *chip);
 int key_pad_to_key_code(unsigned char key_pad);
 
 unsigned char key_code_to_key_pad(int key);
+
+typedef void (*Instruction_Handler)(struct chip8 *chip);
+
+void op_0x(struct chip8 *chip);
+
+void op_ax(struct chip8 *chip);
+
+void op_1x(struct chip8 *chip);
+
+void op_2x(struct chip8 *chip);
+
+void op_3x(struct chip8 *chip);
+
+void op_4x(struct chip8 *chip);
+
+void op_5x(struct chip8 *chip);
+
+void op_6x(struct chip8 *chip);
+
+void op_7x(struct chip8 *chip);
+
+void op_8x(struct chip8 *chip);
+
+void op_80(struct chip8 *chip);
+
+void op_81(struct chip8 *chip);
+
+void op_82(struct chip8 *chip);
+
+void op_83(struct chip8 *chip);
+
+void op_84(struct chip8 *chip);
+
+void op_85(struct chip8 *chip);
+
+void op_86(struct chip8 *chip);
+
+void op_87(struct chip8 *chip);
+
+void op_8e(struct chip8 *chip);
+
+void op_9x(struct chip8 *chip);
+
+void op_bx(struct chip8 *chip);
+
+void op_cx(struct chip8 *chip);
+
+void op_dx(struct chip8 *chip);
+
+void op_ex(struct chip8 *chip);
+
+void op_fx(struct chip8 *chip);
+
