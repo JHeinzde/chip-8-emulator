@@ -20,7 +20,6 @@
 #define KEY_SIZE 16
 
 #define TEXT_SEGMENT_START 0x200
-
 #define FETCH_OPCODE(pc, mem) ((mem)[(pc)] << 8 | (mem)[(pc) + 1])
 
 typedef enum {
@@ -129,12 +128,12 @@ typedef enum {
 #define BIT_8  0x00f0
 #define BIT_8_SHIFT 4
 
-#define GET_X(opcode) ((opcode & BIT_12) >> BIT_12_SHIFT)
-#define GET_Y(opcode) ((opcode & BIT_8) >> BIT_8_SHIFT)
+#define GET_X(opcode) (((opcode) & BIT_12) >> BIT_12_SHIFT)
+#define GET_Y(opcode) (((opcode) & BIT_8) >> BIT_8_SHIFT)
 
-#define NNN(opcode) (opcode & LAST_12_BITS)
-#define NN(opcode) (opcode & LAST_8_BITS)
-#define N(opcode) (opcode & LAST_4_BITS)
+#define NNN(opcode) ((opcode) & LAST_12_BITS)
+#define NN(opcode) ((opcode) & LAST_8_BITS)
+#define N(opcode) ((opcode) & LAST_4_BITS)
 
 #define INVALID_KEY 255
 

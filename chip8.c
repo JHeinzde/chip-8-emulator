@@ -67,7 +67,6 @@ void emulate_cycle(struct chip8 *chip) {
 
     chip->opcode = FETCH_OPCODE(chip->pc, chip->memory);
     chip->pc += 2;
-    printf("Executing opcode 0x%04x with pc %x\n", chip->opcode, chip->pc);
 
     int reg_x = GET_X(chip->opcode);
     int reg_y = GET_Y(chip->opcode);
@@ -82,6 +81,7 @@ void emulate_cycle(struct chip8 *chip) {
                     for (int i = 0; i < GFX_SIZE; i++) {
                         chip->gfx[i] = 0x0;
                     }
+                    chip->draw_flag = 1;
                     break;
                 case EXIT:
                     chip->pc = chip->stack[chip->sp];
@@ -89,19 +89,14 @@ void emulate_cycle(struct chip8 *chip) {
                     break;
                 default:
                     printf("DEFAULT CASE opcode: %d, pc: %x\n", chip->opcode, chip->pc);
-                    print_debug(chip);
-                    WaitTime(20);
-                    exit(1);
             }
         case LDI:
-            printf("Assign Index register with value %x\n", nnn);
             chip->index_reg = nnn;
             break;
         case JMP:
             chip->pc = nnn;
             break;
         case CALL:
-            printf("called %x with pc %x", nnn, chip->pc);
             chip->sp += 1;
             chip->stack[chip->sp] = chip->pc;
             chip->pc = nnn;
@@ -119,7 +114,6 @@ void emulate_cycle(struct chip8 *chip) {
                 chip->pc += 2;
             break;
         case ASSIGN_R:
-            printf("Assigning register %x with value %d\n", reg_x, nn);
             chip->V[reg_x] = nn;
             break;
         case ADD_R:
@@ -139,35 +133,39 @@ void emulate_cycle(struct chip8 *chip) {
                 case XOR:
                     chip->V[reg_x] ^= chip->V[reg_y];
                     break;
-                case ADD:
-                    chip->V[VF] = 0;
-                    chip->V[VF] = chip->V[reg_x];
+                case ADD: {
+                    uint8_t flag = ((int) (chip->V[reg_x] + chip->V[reg_y])) > UINT8_MAX;
                     chip->V[reg_x] += chip->V[reg_y];
-
-                    if (((int) (chip->V[VF] + chip->V[reg_y])) > UINT8_MAX)
-                        chip->V[VF] = 1;
+                    chip->V[VF] = flag;
+                }
                     break;
-                case SUB:
-                    chip->V[VF] = 0;
-                    chip->V[VF] = (chip->V[reg_x] > chip->V[reg_y]);
+                case SUB: {
+                    uint8_t flag = (chip->V[reg_x] >= chip->V[reg_y]);
+
                     chip->V[reg_x] -= chip->V[reg_y];
+                    chip->V[VF] = flag;
+                }
                     break;
                 case SHR:
                     // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y >> 1
-                    chip->V[VF] = 0;
-                    chip->V[VF] = chip->V[reg_x] & 0b1;
+                {
+                    uint8_t flag = chip->V[reg_x] & 0b1;
                     chip->V[reg_x] >>= 1;
+                    chip->V[VF] = flag;
+                }
                     break;
-                case SHL:
+                case SHL: {
                     // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y << 1
-                    chip->V[VF] = 0;
-                    chip->V[VF] = chip->V[reg_y] & 0b10000000;
+                    uint8_t flag = chip->V[reg_x] & 0b10000000;
                     chip->V[reg_x] <<= 1;
+                    chip->V[VF] = flag / 128;
+                }
                     break;
-                case SUBN:
-                    chip->V[VF] = 0;
-                    chip->V[VF] = chip->V[reg_y] > chip->V[reg_x];
+                case SUBN: {
+                    uint8_t flag = chip->V[reg_y] >= chip->V[reg_x];
                     chip->V[reg_x] = chip->V[reg_y] - chip->V[reg_x];
+                    chip->V[VF] = flag;
+                }
                     break;
                 default:
                     printf("UNIMPLEMENTED REGISTER OPCODE %d\n", chip->opcode & LAST_4_BITS);
@@ -189,8 +187,6 @@ void emulate_cycle(struct chip8 *chip) {
             uint8_t y_coord = chip->V[reg_y];
             uint8_t height = n;
             chip->V[VF] = 0;
-
-            printf("DRAW at x: %d, y: %d, with height %d\n", x_coord, y_coord, height);
 
             for (int row = 0; row < height; row++) {
                 uint8_t sprite_byte = chip->memory[chip->index_reg + row];
@@ -260,19 +256,19 @@ void emulate_cycle(struct chip8 *chip) {
                     chip->memory[chip->index_reg + 2] = (chip->V[reg_x] % 10);
                     break;
                 case SAVE:
-                    for (int i = 0; i < chip->V[reg_x]; i++) {
+                    for (int i = 0; i <= reg_x; i++) {
                         chip->memory[chip->index_reg + i] = chip->V[i];
                     }
                     break;
                 case LOAD:
-                    for (int i = 0; i < chip->V[reg_x]; i++) {
+                    for (int i = 0; i <= reg_x; i++) {
                         chip->V[i] = chip->memory[chip->index_reg + i];
                     }
                     break;
                 default:
                     printf("UNIMPLEMENTED MISC OPERATION 0x%X\n", nn);
             }
-
+            break;
         default:
             printf("UNIMPLEMENTED OPCODE 0x%X\n", chip->opcode);
     };
@@ -328,7 +324,6 @@ void print_debug(struct chip8 *chip) {
 }
 
 void draw_graphics(struct chip8 *chip, RenderTexture2D target) {
-    printf("DRAWING \n");
     BeginTextureMode(target);
     ClearBackground(BLACK);
 
