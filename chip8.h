@@ -118,6 +118,8 @@ typedef struct {
     bool shift_quirk;
     bool load_store_quirk;
     bool jump_quirk;
+    bool clipping_quirk;
+    bool display_wait;
 } chip8_quirks;
 
 #define LAST_12_BITS 0x0fff
@@ -172,7 +174,7 @@ struct chip8 *init_chip8();
 
 void load_program(char *filename, struct chip8 *chip);
 
-void initialize(struct chip8 *chip);
+void initialize(struct chip8 *chip, char* mode);
 
 void execute_program(struct chip8 *chip);
 
@@ -192,51 +194,68 @@ typedef void (*Instruction_Handler)(struct chip8 *chip);
 
 void op_0x(struct chip8 *chip);
 
-void op_ax(struct chip8 *chip);
+void op_ldi(struct chip8 *chip);
 
-void op_1x(struct chip8 *chip);
+void op_jmp(struct chip8 *chip);
 
-void op_2x(struct chip8 *chip);
+void op_call(struct chip8 *chip);
 
-void op_3x(struct chip8 *chip);
+void op_se(struct chip8 *chip);
 
-void op_4x(struct chip8 *chip);
+void op_sne(struct chip8 *chip);
 
-void op_5x(struct chip8 *chip);
+void op_se_r(struct chip8 *chip);
 
-void op_6x(struct chip8 *chip);
+void op_assign_r(struct chip8 *chip);
 
-void op_7x(struct chip8 *chip);
+void op_add_r(struct chip8 *chip);
 
-void op_8x(struct chip8 *chip);
+void op_ops_r(struct chip8 *chip);
 
-void op_80(struct chip8 *chip);
+void op_assign(struct chip8 *chip);
 
-void op_81(struct chip8 *chip);
+void op_or(struct chip8 *chip);
 
-void op_82(struct chip8 *chip);
+void op_and(struct chip8 *chip);
 
-void op_83(struct chip8 *chip);
+void op_xor(struct chip8 *chip);
 
-void op_84(struct chip8 *chip);
+void op_add(struct chip8 *chip);
 
-void op_85(struct chip8 *chip);
+void op_sub(struct chip8 *chip);
 
-void op_86(struct chip8 *chip);
+void op_shr(struct chip8 *chip);
 
-void op_87(struct chip8 *chip);
+void op_subn(struct chip8 *chip);
 
-void op_8e(struct chip8 *chip);
+void op_shl(struct chip8 *chip);
 
-void op_9x(struct chip8 *chip);
+void op_sne_r(struct chip8 *chip);
 
-void op_bx(struct chip8 *chip);
+void op_jmp_r(struct chip8 *chip);
 
-void op_cx(struct chip8 *chip);
+void op_rand(struct chip8 *chip);
 
-void op_dx(struct chip8 *chip);
+void op_drw(struct chip8 *chip);
 
-void op_ex(struct chip8 *chip);
+void op_ops_k(struct chip8 *chip);
 
-void op_fx(struct chip8 *chip);
+void op_ops_m(struct chip8 *chip);
 
+void op_load_x_delay_timer(struct chip8 *chip);
+
+void op_load_key_wait(struct chip8 *chip);
+
+void op_load_delay_timer_x(struct chip8 *chip);
+
+void op_load_sound_timer_x(struct chip8 *chip);
+
+void op_add_i_x(struct chip8 *chip);
+
+void op_set_i_sp(struct chip8 *chip);
+
+void op_bcd(struct chip8 *chip);
+
+void op_save(struct chip8 *chip);
+
+void op_load(struct chip8 *chip);

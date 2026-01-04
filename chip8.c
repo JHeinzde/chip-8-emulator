@@ -5,6 +5,7 @@
 #include "chip8.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 unsigned char chip8_fontset[80] =
@@ -30,32 +31,44 @@ unsigned char chip8_fontset[80] =
 
 Instruction_Handler main_table[16] = {
         [CLEAR_EXIT] =  &op_0x,
-        [JMP] =&op_1x,
-        [CALL] =&op_2x,
-        [SE] =&op_3x,
-        [SNE] =&op_4x,
-        [SE_R] =&op_5x,
-        [ASSIGN_R] =&op_6x,
-        [ADD_R] =&op_7x,
-        [OPS_R] =&op_8x,
-        [SNE_R] =&op_9x,
-        [LDI] =&op_ax,
-        [JMP_R] =&op_bx,
-        [RAND] =&op_cx,
-        [DRW] =&op_dx,
-        [OPS_K] =&op_ex,
-        [OPS_M] =&op_fx
+        [JMP] =&op_jmp,
+        [CALL] =&op_call,
+        [SE] =&op_se,
+        [SNE] =&op_sne,
+        [SE_R] =&op_se_r,
+        [ASSIGN_R] =&op_assign_r,
+        [ADD_R] =&op_add_r,
+        [OPS_R] =&op_ops_r,
+        [SNE_R] =&op_sne_r,
+        [LDI] =&op_ldi,
+        [JMP_R] =&op_jmp_r,
+        [RAND] =&op_rand,
+        [DRW] =&op_drw,
+        [OPS_K] =&op_ops_k,
+        [OPS_M] =&op_ops_m
 };
 Instruction_Handler table_8[16] = {
-        [ASSIGN] = &op_80,
-        [OR] = &op_81,
-        [AND] = &op_82,
-        [XOR] = &op_83,
-        [ADD] = &op_84,
-        [SUB] = &op_85,
-        [SHR] = &op_86,
-        [SUBN] = &op_87,
-        [SHL] = &op_8e,
+        [ASSIGN] = &op_assign,
+        [OR] = &op_or,
+        [AND] = &op_and,
+        [XOR] = &op_xor,
+        [ADD] = &op_add,
+        [SUB] = &op_sub,
+        [SHR] = &op_shr,
+        [SUBN] = &op_subn,
+        [SHL] = &op_shl,
+};
+
+Instruction_Handler table_f[256] = {
+        [LD_X_DT] = &op_load_x_delay_timer,
+        [LD_K_W] = &op_load_key_wait,
+        [LD_DT_X] = &op_load_delay_timer_x,
+        [LD_ST_X] = &op_load_sound_timer_x,
+        [ADD_I_X] = &op_add_i_x,
+        [SET_I_SP] = &op_set_i_sp,
+        [BCD] = &op_bcd,
+        [SAVE] = &op_save,
+        [LOAD] = &op_load,
 };
 
 struct chip8 *init_chip8() {
@@ -66,7 +79,7 @@ struct chip8 *init_chip8() {
 
 void update_timers(struct chip8 *chip);
 
-void initialize(struct chip8 *chip) {
+void initialize(struct chip8 *chip, char *mode) {
     chip->pc = TEXT_SEGMENT_START;
     chip->opcode = 0;
     chip->index_reg = 0;
@@ -75,8 +88,15 @@ void initialize(struct chip8 *chip) {
     for (int i = 0; i < 80; ++i)
         chip->memory[i] = chip8_fontset[i];
 
-
     srand(time(NULL));
+
+    if (!strcmp("chip-8", mode)) {
+        chip->quirks.shift_quirk = true;
+        chip->quirks.load_store_quirk = true;
+        chip->quirks.jump_quirk = false;
+        chip->quirks.clipping_quirk = true;
+        chip->quirks.display_wait = true;
+    }
 }
 
 void load_program(char *filename, struct chip8 *chip) {
@@ -101,10 +121,7 @@ void emulate_cycle(struct chip8 *chip) {
     chip->pc += 2;
 
     uint8_t first_nibble = NXXX(chip->opcode);
-    printf("Executing %x opcode\n", first_nibble);
     main_table[first_nibble](chip);
-
-    update_timers(chip);
 }
 
 void update_timers(struct chip8 *chip) {
@@ -137,83 +154,86 @@ void op_0x(struct chip8 *chip) {
 }
 
 
-void op_1x(struct chip8 *chip) {
+void op_jmp(struct chip8 *chip) {
     chip->pc = NNN(chip->opcode);
 }
 
-void op_2x(struct chip8 *chip) {
+void op_call(struct chip8 *chip) {
     chip->sp += 1;
     chip->stack[chip->sp] = chip->pc;
     chip->pc = NNN(chip->opcode);
 }
 
-void op_3x(struct chip8 *chip) {
+void op_se(struct chip8 *chip) {
     if (chip->V[GET_X(chip->opcode)] == NN(chip->opcode))
         chip->pc += 2;
 }
 
-void op_4x(struct chip8 *chip) {
+void op_sne(struct chip8 *chip) {
     if (chip->V[GET_X(chip->opcode)] != NN(chip->opcode))
         chip->pc += 2;
 }
 
-void op_5x(struct chip8 *chip) {
+void op_se_r(struct chip8 *chip) {
     if (chip->V[GET_X(chip->opcode)] == chip->V[GET_Y(chip->opcode)])
         chip->pc += 2;
 }
 
-void op_6x(struct chip8 *chip) {
+void op_assign_r(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] = NN(chip->opcode);
 }
 
-void op_7x(struct chip8 *chip) {
+void op_add_r(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] += NN(chip->opcode);
 }
 
-void op_8x(struct chip8 *chip) {
+void op_ops_r(struct chip8 *chip) {
     table_8[N(chip->opcode)](chip);
 }
 
-void op_80(struct chip8 *chip) {
+void op_assign(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] = chip->V[GET_Y(chip->opcode)];
 }
 
-void op_81(struct chip8 *chip) {
+void op_or(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] |= chip->V[GET_Y(chip->opcode)];
     chip->V[VF] = 0;
 }
 
-void op_82(struct chip8 *chip) {
+void op_and(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] &= chip->V[GET_Y(chip->opcode)];
     chip->V[VF] = 0;
 }
 
-void op_83(struct chip8 *chip) {
+void op_xor(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] ^= chip->V[GET_Y(chip->opcode)];
     chip->V[VF] = 0;
 }
 
-void op_84(struct chip8 *chip) {
+void op_add(struct chip8 *chip) {
     uint8_t flag = ((int) (chip->V[GET_X(chip->opcode)] + chip->V[GET_Y(chip->opcode)])) > UINT8_MAX;
     chip->V[GET_X(chip->opcode)] += chip->V[GET_Y(chip->opcode)];
     chip->V[VF] = flag;
 }
 
-void op_85(struct chip8 *chip) {
+void op_sub(struct chip8 *chip) {
     uint8_t flag = (chip->V[GET_X(chip->opcode)] >= chip->V[GET_Y(chip->opcode)]);
 
     chip->V[GET_X(chip->opcode)] -= chip->V[GET_Y(chip->opcode)];
     chip->V[VF] = flag;
 }
 
-void op_86(struct chip8 *chip) {
-    // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y >> 1
+void op_shr(struct chip8 *chip) {
+    if (chip->quirks.shift_quirk) {
+        chip->V[GET_X(chip->opcode)] = chip->V[GET_Y(chip->opcode)];
+    }
+
     uint8_t flag = chip->V[GET_X(chip->opcode)] & 0b1;
     chip->V[GET_X(chip->opcode)] >>= 1;
     chip->V[VF] = flag;
 }
 
-void op_87(struct chip8 *chip) {
+void op_subn(struct chip8 *chip) {
     uint8_t x = GET_X(chip->opcode);
     uint8_t y = GET_Y(chip->opcode);
 
@@ -223,53 +243,70 @@ void op_87(struct chip8 *chip) {
     chip->V[VF] = flag;
 }
 
-void op_8e(struct chip8 *chip) {
-    // TODO: Make its behaviour toggleable. Other behaviour is V_x = V_y << 1
-    uint8_t x = GET_X(chip->opcode);
-    uint8_t flag = chip->V[x] & 0b10000000;
-    chip->V[x] <<= 1;
+void op_shl(struct chip8 *chip) {
+    if (chip->quirks.shift_quirk) {
+        chip->V[GET_X(chip->opcode)] = chip->V[GET_Y(chip->opcode)];
+    }
+
+    uint8_t flag = chip->V[GET_X(chip->opcode)] & 0b10000000;
+    chip->V[GET_X(chip->opcode)] <<= 1;
     chip->V[VF] = flag / 128;
 }
 
 
-void op_9x(struct chip8 *chip) {
+void op_sne_r(struct chip8 *chip) {
     if (chip->V[GET_X(chip->opcode)] != chip->V[GET_Y(chip->opcode)])
         chip->pc += 2;
 }
 
 
-void op_ax(struct chip8 *chip) {
+void op_ldi(struct chip8 *chip) {
     chip->index_reg = NNN(chip->opcode);
 }
 
-void op_bx(struct chip8 *chip) {
+void op_jmp_r(struct chip8 *chip) {
     chip->pc = NNN(chip->opcode) + chip->V[V0];
 }
 
-void op_cx(struct chip8 *chip) {
+void op_rand(struct chip8 *chip) {
     chip->V[GET_X(chip->opcode)] = (rand() % UCHAR_MAX) ^ NN(chip->opcode);
 }
 
-void op_dx(struct chip8 *chip) {
+void op_drw(struct chip8 *chip) {
     // This section was generated by gemini
     uint8_t x_coord = chip->V[GET_X(chip->opcode)];
     uint8_t y_coord = chip->V[GET_Y(chip->opcode)];
+
+
+    if (chip->quirks.clipping_quirk && (x_coord > WIDTH))
+        x_coord %= WIDTH;
+    if (chip->quirks.clipping_quirk && (y_coord > HEIGHT))
+        y_coord %= HEIGHT;
+
     uint8_t height = N(chip->opcode);
     chip->V[VF] = 0;
 
     for (int row = 0; row < height; row++) {
         uint8_t sprite_byte = chip->memory[chip->index_reg + row];
         for (int col = 0; col < 8; col++) {
+
+
             if ((sprite_byte & (0x80 >> col)) != 0) {
-                int screen_x = (x_coord + col) % 64;
-                int screen_y = (y_coord + row) % 32;
+                int screen_x = x_coord + col;
+                int screen_y = y_coord + row;
+
+                if (chip->quirks.clipping_quirk && (screen_x > WIDTH || screen_y > HEIGHT)) {
+                    continue;
+                } else {
+                    screen_x %= WIDTH;
+                    screen_y %= HEIGHT;
+                }
+
 
                 int screen_index = screen_x + (screen_y * 64);
-
                 if (chip->gfx[screen_index] == 1) {
                     chip->V[VF] = 1;
                 }
-
                 chip->gfx[screen_index] ^= 1;
             }
         }
@@ -279,7 +316,7 @@ void op_dx(struct chip8 *chip) {
     //Gemini generated section ends here
 }
 
-void op_ex(struct chip8 *chip) {
+void op_ops_k(struct chip8 *chip) {
     switch (NN(chip->opcode)) {
         case KEY_PRESSED:
             if (chip->key[chip->V[GET_X(chip->opcode)]])
@@ -292,56 +329,75 @@ void op_ex(struct chip8 *chip) {
     }
 }
 
-void op_fx(struct chip8 *chip) {
-    switch (NN(chip->opcode)) {
-        case LD_X_DT:
-            chip->V[GET_X(chip->opcode)] = chip->delay_timer;
-            break;
-        case LD_K_W: {
-            int key = GetKeyPressed();
+void op_ops_m(struct chip8 *chip) {
+    table_f[NN(chip->opcode)](chip);
+}
 
-            if (!key) {
-                chip->pc -= 2;
-            } else {
-                if (key_code_to_key_pad(key) != INVALID_KEY) {
-                    chip->V[GET_X(chip->opcode)] = key_code_to_key_pad(key);
-                } else {
-                    chip->pc -= 2;
-                }
-            }
+void op_load_x_delay_timer(struct chip8 *chip) {
+    chip->V[GET_X(chip->opcode)] = chip->delay_timer;
+}
+
+
+void op_load_key_wait(struct chip8 *chip) {
+    int key = GetKeyPressed();
+
+    if (!key) {
+        chip->pc -= 2;
+    } else {
+        if (key_code_to_key_pad(key) != INVALID_KEY) {
+            chip->V[GET_X(chip->opcode)] = key_code_to_key_pad(key);
+        } else {
+            chip->pc -= 2;
         }
-            break;
-        case LD_DT_X:
-            chip->delay_timer = chip->V[GET_X(chip->opcode)];
-            break;
-        case LD_ST_X:
-            chip->sound_timer = chip->V[GET_X(chip->opcode)];
-            break;
-        case ADD_I_X:
-            chip->index_reg += chip->V[GET_X(chip->opcode)];
-            break;
-        case SET_I_SP:
-            chip->index_reg = GET_X(chip->opcode) * 5;
-            break;
-        case BCD:
-            chip->memory[chip->index_reg] = chip->V[GET_X(chip->opcode)] / 100;
-            chip->memory[chip->index_reg + 1] = (chip->V[GET_X(chip->opcode)] / 10) % 10;
-            chip->memory[chip->index_reg + 2] = (chip->V[GET_X(chip->opcode)] % 10);
-            break;
-        case SAVE:
-            for (int i = 0; i <= GET_X(chip->opcode); i++) {
-                chip->memory[chip->index_reg + i] = chip->V[i];
-            }
-            break;
-        case LOAD:
-            for (int i = 0; i <= GET_X(chip->opcode); i++) {
-                chip->V[i] = chip->memory[chip->index_reg + i];
-            }
-            break;
-        default:
-            printf("UNIMPLEMENTED MISC OPERATION 0x%X\n", NN(chip->opcode));
     }
 }
+
+
+void op_load_delay_timer_x(struct chip8 *chip) {
+    chip->delay_timer = chip->V[GET_X(chip->opcode)];
+}
+
+
+void op_load_sound_timer_x(struct chip8 *chip) {
+    chip->sound_timer = chip->V[GET_X(chip->opcode)];
+}
+
+
+void op_add_i_x(struct chip8 *chip) {
+    chip->index_reg += chip->V[GET_X(chip->opcode)];
+}
+
+
+void op_set_i_sp(struct chip8 *chip) {
+    chip->index_reg = GET_X(chip->opcode) * 5;
+}
+
+
+void op_bcd(struct chip8 *chip) {
+    chip->memory[chip->index_reg] = chip->V[GET_X(chip->opcode)] / 100;
+    chip->memory[chip->index_reg + 1] = (chip->V[GET_X(chip->opcode)] / 10) % 10;
+    chip->memory[chip->index_reg + 2] = (chip->V[GET_X(chip->opcode)] % 10);
+}
+
+void op_save(struct chip8 *chip) {
+    for (int i = 0; i <= GET_X(chip->opcode); i++) {
+        chip->memory[chip->index_reg + i] = chip->V[i];
+    }
+
+    if (chip->quirks.load_store_quirk)
+        chip->index_reg += GET_X(chip->opcode) + 1;
+
+}
+
+void op_load(struct chip8 *chip) {
+    for (int i = 0; i <= GET_X(chip->opcode); i++) {
+        chip->V[i] = chip->memory[chip->index_reg + i];
+    }
+
+    if (chip->quirks.load_store_quirk)
+        chip->index_reg += GET_X(chip->opcode) + 1;
+}
+
 
 void print_debug(struct chip8 *chip) {
     printf("STATE: \n");
@@ -405,18 +461,26 @@ void set_keys(struct chip8 *chip) {
 
 void execute_program(struct chip8 *chip) {
     InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "chip-8 emulator");
+    double last_time = GetTime();
 
     RenderTexture2D target = LoadRenderTexture(WIDTH, HEIGHT);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
+    BeginDrawing();
     SetTargetFPS(FPS);
 
     while (!WindowShouldClose()) {
-        emulate_cycle(chip);
 
-        if (chip->draw_flag)
-            draw_graphics(chip, target);
+        for (int i = 0; i < 10; i++) {
+            emulate_cycle(chip);
+            if (chip->draw_flag) {
+                draw_graphics(chip, target);
+                if (chip->quirks.display_wait)
+                    break;
+            }
+            set_keys(chip);
+        }
+        update_timers(chip);
 
-        set_keys(chip);
 
         BeginDrawing();
         ClearBackground(BLACK);
