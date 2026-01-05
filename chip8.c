@@ -88,8 +88,6 @@ void initialize(struct chip8 *chip, char *mode) {
     for (int i = 0; i < 80; ++i)
         chip->memory[i] = chip8_fontset[i];
 
-    srand(time(NULL));
-
     if (!strcmp("chip-8", mode)) {
         chip->quirks.shift_quirk = true;
         chip->quirks.load_store_quirk = true;
@@ -269,7 +267,7 @@ void op_jmp_r(struct chip8 *chip) {
 }
 
 void op_rand(struct chip8 *chip) {
-    chip->V[GET_X(chip->opcode)] = (rand() % UCHAR_MAX) ^ NN(chip->opcode);
+    chip->V[GET_X(chip->opcode)] = GetRandomValue(0, 255) && NN(chip->opcode);
 }
 
 void op_drw(struct chip8 *chip) {
@@ -339,17 +337,21 @@ void op_load_x_delay_timer(struct chip8 *chip) {
 
 
 void op_load_key_wait(struct chip8 *chip) {
-    int key = GetKeyPressed();
+    int x = GET_X(chip->opcode);
+    bool key_found = false;
 
-    if (!key) {
-        chip->pc -= 2;
-    } else {
-        if (key_code_to_key_pad(key) != INVALID_KEY) {
-            chip->V[GET_X(chip->opcode)] = key_code_to_key_pad(key);
-        } else {
-            chip->pc -= 2;
+
+    for (int i = 0; i < 16; i++) {
+        int keycode = key_pad_to_key_code(i);
+        if(IsKeyReleased(keycode)) {
+            chip->V[x] = i;
+            key_found = true;
+            break;
         }
     }
+
+    if (!key_found)
+        chip->pc -= 2;
 }
 
 
@@ -470,6 +472,7 @@ void execute_program(struct chip8 *chip) {
 
     while (!WindowShouldClose()) {
 
+        set_keys(chip);
         for (int i = 0; i < 10; i++) {
             emulate_cycle(chip);
             if (chip->draw_flag) {
@@ -477,7 +480,6 @@ void execute_program(struct chip8 *chip) {
                 if (chip->quirks.display_wait)
                     break;
             }
-            set_keys(chip);
         }
         update_timers(chip);
 
@@ -487,7 +489,7 @@ void execute_program(struct chip8 *chip) {
         DrawTexturePro(target.texture,
                        (Rectangle) {0, 0, (float) target.texture.width, (float) -target.texture.height},
                        (Rectangle) {0, 0, (float) GetScreenWidth(), (float) GetScreenHeight()},
-                       (Vector2) {0, 0}, 0.00, WHITE);
+                       (Vector2) {0, 0}, 0.0, WHITE);
         EndDrawing();
     }
 }
